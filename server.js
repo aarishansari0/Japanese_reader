@@ -88,6 +88,6 @@ app.post("/process", async (req, res) => {
 });
 
 // Start server
-app.listen(8000, () => {
-    console.log("Running at http://localhost:8000");
+app.listen(3000, () => {
+    console.log("Running at http://localhost:3000");
 });

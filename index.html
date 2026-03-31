@@ -28,7 +28,7 @@ html, body {
 
 <embed id="pdfEmbed"
        type="application/pdf"
-       src="http://localhost:8000/f0118e-nemuimachi.pdf">
+       src="http://localhost:3000/f0118e-nemuimachi.pdf">
 
 <script>
 const embed = document.getElementById('pdfEmbed');
@@ -48,7 +48,7 @@ window.addEventListener('message', async (event) => {
             lastText = text;
 
             try {
-                const res = await fetch("http://localhost:8000/process", {
+                const res = await fetch("http://localhost:3000/process", {
                     method: "POST",
                     headers: {
                         "Content-Type": "application/json"
