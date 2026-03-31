@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PDF Translate + Tokenizer</title>
+
+<style>
+html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    overflow: hidden;
+}
+
+#pdfEmbed {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    border: none;
+}
+</style>
+</head>
+
+<body>
+
+<embed id="pdfEmbed"
+       type="application/pdf"
+       src="http://localhost:8000/f0118e-nemuimachi.pdf">
+
+<script>
+const embed = document.getElementById('pdfEmbed');
+let lastText = "";
+
+// Poll for selected text
+setInterval(() => {
+    embed.postMessage({ type: 'getSelectedText' }, '*');
+}, 1000);
+
+// Handle selected text
+window.addEventListener('message', async (event) => {
+    if (event.data?.type === 'getSelectedTextReply') {
+        const text = event.data.selectedText?.trim();
+
+        if (text && text !== lastText) {
+            lastText = text;
+
+            try {
+                const res = await fetch("http://localhost:8000/process", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({ text })
+                });
+
+                const data = await res.json();
+
+                alert(
+                    `📘 Original:\n${data.original}\n\n` +
+                    `🌍 Translation:\n${data.translation}\n\n` +
+                    `🔤 Tokens:\n` +
+                    data.tokens.map(t =>
+                        `${t.word} (${t.reading}) → ${t.base}`
+                    ).join("\n")
+                );
+
+            } catch (err) {
+                console.error(err);
+                alert("Error: Failed to fetch");
+            }
+        }
+    }
+});
+</script>
+
+</body>
+</html>
