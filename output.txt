@@ -58,7 +58,7 @@ html, body {
 
 <embed id="pdfEmbed"
        type="application/pdf"
-       src="http://localhost:3000/f0118e-nemuimachi.pdf">
+       src="https://japanese-reader.onrender.com/f0118e-nemuimachi.pdf">
 
 <script>
 const embed = document.getElementById('pdfEmbed');
@@ -78,7 +78,7 @@ window.addEventListener('message', async (event) => {
             lastText = text;
 
             try {
-                const res = await fetch("http://localhost:3000/process", {
+                const res = await fetch("https://japanese-reader.onrender.com/process", {
                     method: "POST",
                     headers: {
                         "Content-Type": "application/json"
@@ -200,5 +200,5 @@ app.post("/process", async (req, res) => {
 
 // Start server
 app.listen(3000, () => {
-    console.log("Running at http://localhost:3000");
+    console.log("Running at http://");
 });
