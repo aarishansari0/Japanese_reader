@@ -78,7 +78,7 @@ window.addEventListener('message', async (event) => {
             lastText = text;
 
             try {
-                const res = await fetch("https://japanese-reader.onrender.com/process", {
+                const res = await fetch("http://japanese-reader.onrender.com/process", {
                     method: "POST",
                     headers: {
                         "Content-Type": "application/json"
@@ -200,5 +200,5 @@ app.post("/process", async (req, res) => {
 
 // Start server
 app.listen(3000, () => {
-    console.log("Running at http://");
+    console.log("Running at http://localhost:3000");
 });
