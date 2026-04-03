@@ -1,0 +1,204 @@
+--open-file.html--
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Select PDF</title>
+</head>
+
+<body>
+
+<h2>Select a PDF</h2>
+
+<input type="file" id="fileInput" accept="application/pdf">
+
+<script>
+document.getElementById("fileInput").addEventListener("change", (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // Create temporary URL
+    const fileURL = URL.createObjectURL(file);
+
+    // Redirect to index.html with file param
+    window.location.href = `index.html?file=${encodeURIComponent(fileURL)}`;
+});
+</script>
+
+</body>
+</html>
+--index.html--
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PDF Translate + Tokenizer</title>
+
+<style>
+html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    overflow: hidden;
+}
+
+#pdfEmbed {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    border: none;
+}
+</style>
+</head>
+
+<body>
+
+<embed id="pdfEmbed"
+       type="application/pdf"
+       src="http://localhost:3000/f0118e-nemuimachi.pdf">
+
+<script>
+const embed = document.getElementById('pdfEmbed');
+let lastText = "";
+
+// Poll for selected text
+setInterval(() => {
+    embed.postMessage({ type: 'getSelectedText' }, '*');
+}, 1000);
+
+// Handle selected text
+window.addEventListener('message', async (event) => {
+    if (event.data?.type === 'getSelectedTextReply') {
+        const text = event.data.selectedText?.trim();
+
+        if (text && text !== lastText) {
+            lastText = text;
+
+            try {
+                const res = await fetch("http://localhost:3000/process", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({ text })
+                });
+
+                const data = await res.json();
+
+                alert(
+                    `📘 Original:\n${data.original}\n\n` +
+                    `🌍 Translation:\n${data.translation}\n\n` +
+                    `🔤 Tokens:\n` +
+                    data.tokens.map(t =>
+                        `${t.word} (${t.reading}) → ${t.base}`
+                    ).join("\n")
+                );
+
+            } catch (err) {
+                console.error(err);
+                alert("Error: Failed to fetch");
+            }
+        }
+    }
+});
+</script>
+
+</body>
+</html>
+--server.js--
+const express = require("express");
+const kuromoji = require("kuromoji");
+const cors = require("cors");
+const path = require("path");
+
+const app = express();
+
+app.use(cors());
+app.use(express.json());
+
+// Serve frontend
+app.use(express.static(__dirname));
+
+let tokenizer = null;
+
+// Load tokenizer
+kuromoji.builder({
+    dicPath: path.join(__dirname, "dict")
+}).build((err, t) => {
+    if (err) {
+        console.error("Tokenizer error:", err);
+        return;
+    }
+    tokenizer = t;
+    console.log("Tokenizer ready ✅");
+});
+
+// Safe translate
+async function translateText(text) {
+    try {
+        const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=ja&tl=en&dt=t&q=${encodeURIComponent(text)}`;
+
+        const res = await fetch(url);
+
+        const contentType = res.headers.get("content-type");
+
+        if (!contentType || !contentType.includes("application/json")) {
+            const raw = await res.text();
+            console.error("Bad response:", raw.slice(0, 200));
+            return "Translation error";
+        }
+
+        const data = await res.json();
+
+        return data[0].map(t => t[0]).join("");
+
+    } catch (err) {
+        console.error("Translation crash:", err);
+        return "Translation failed";
+    }
+}
+
+// Main API
+app.post("/process", async (req, res) => {
+    try {
+        if (!tokenizer) {
+            return res.json({
+                original: req.body.text,
+                tokens: [],
+                translation: "Tokenizer loading..."
+            });
+        }
+
+        const tokens = tokenizer.tokenize(req.body.text);
+
+        const formatted = tokens.map(t => ({
+            word: t.surface_form,
+            base: t.basic_form,
+            reading: t.reading
+        }));
+
+        const translation = await translateText(req.body.text);
+
+        res.json({
+            original: req.body.text,
+            tokens: formatted,
+            translation
+        });
+
+    } catch (err) {
+        console.error("🔥 SERVER CRASH:", err);
+
+        res.status(500).json({
+            error: true,
+            details: err.message
+        });
+    }
+});
+
+// Start server
+app.listen(3000, () => {
+    console.log("Running at http://localhost:3000");
+});
